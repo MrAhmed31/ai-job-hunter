@@ -1,60 +1,121 @@
-# AI Job Hunter
+<p align="center">
+  <h1 align="center">AI Job Hunter</h1>
+  <p align="center"><strong>Land Better Jobs Faster with AI</strong></p>
+  <p align="center">
+    <a href="https://ai-job-hunter-liard.vercel.app">Live Demo</a> ·
+    <a href="https://github.com/MrAhmed31/ai-job-hunter">GitHub</a> ·
+    <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+    <a href="docs/DEPLOY.md">Deploy Guide</a>
+  </p>
+</p>
 
-**Land Better Jobs Faster with AI.**
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Clerk-Auth-purple?style=flat-square" alt="Clerk" />
+  <img src="https://img.shields.io/badge/Supabase-Database-3ECF8E?style=flat-square&logo=supabase" alt="Supabase" />
+  <img src="https://img.shields.io/badge/OpenAI-GPT--4o-412991?style=flat-square&logo=openai" alt="OpenAI" />
+  <img src="https://img.shields.io/badge/Vercel-Deployed-000?style=flat-square&logo=vercel" alt="Vercel" />
+</p>
 
-[![GitHub](https://img.shields.io/badge/GitHub-MrAhmed31%2Fai--job--hunter-blue)](https://github.com/MrAhmed31/ai-job-hunter)
+---
 
-A production-ready SaaS application for resume optimization, job matching, cover letter generation, interview preparation, and AI-powered career coaching.
+## Overview
 
-**Repository:** https://github.com/MrAhmed31/ai-job-hunter
+**AI Job Hunter** is a full-stack AI SaaS that helps job seekers optimize resumes, match jobs, generate cover letters, prepare for interviews, and get personalized career coaching — all in one platform.
+
+**Live:** [https://ai-job-hunter-liard.vercel.app](https://ai-job-hunter-liard.vercel.app)
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Resume Optimizer** | Upload PDF/DOCX/TXT → ATS score, keyword analysis, 5 improved versions |
+| **LinkedIn Review** | Scrape & analyze profile → headline rewrites, SEO, networking tips |
+| **Portfolio Review** | GitHub + website analysis → code quality, UX, README feedback |
+| **Job Matching** | Paste job URL → match %, missing skills, learning path |
+| **Cover Letters** | AI-generated letters in 4 tones, short/long versions |
+| **Interview Coach** | Technical, behavioral, HR questions + STAR answers + mock evaluation |
+| **AI Career Chat** | RAG-powered assistant with conversation history |
+| **Dashboard** | Stats, AI suggestions, application tracking |
+
+---
+
+## What Needs OpenAI?
+
+| Works without OpenAI | Requires `OPENAI_API_KEY` |
+|----------------------|---------------------------|
+| Landing page, auth, dashboard UI | Resume ATS analysis & version generation |
+| Firecrawl scraping (LinkedIn, jobs, portfolios) | LinkedIn / portfolio AI analysis |
+| Supabase data storage | Job match scoring & suggestions |
+| | Cover letter generation |
+| | Interview questions & evaluation |
+| | AI career chat (RAG embeddings + responses) |
+
+Add `OPENAI_API_KEY` in Vercel → Environment Variables to unlock all AI features. Estimated cost: **~$0.01–0.05 per resume analysis** on GPT-4o.
+
+---
 
 ## Tech Stack
 
-- **Frontend:** Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Framer Motion, TanStack Query
-- **Backend:** Next.js Server Actions, Route Handlers
-- **Auth:** Clerk
-- **Database:** Supabase PostgreSQL + pgvector
-- **AI:** OpenAI GPT-4o + text-embedding-3-small
-- **Scraping:** Firecrawl
-- **Deployment:** Vercel + Supabase
+| Layer | Technology |
+|-------|-------------|
+| Framework | Next.js 16 (App Router), TypeScript, React 19 |
+| Styling | Tailwind CSS v4, shadcn/ui, Framer Motion |
+| Auth | Clerk |
+| Database | Supabase PostgreSQL + pgvector |
+| AI | OpenAI GPT-4o + text-embedding-3-small |
+| Scraping | Firecrawl |
+| State | TanStack Query, Server Actions |
+| Deploy | Vercel |
 
-## Getting Started
+---
 
-### 1. Clone and install
+## Quick Start
+
+### 1. Clone & install
 
 ```bash
+git clone https://github.com/MrAhmed31/ai-job-hunter.git
 cd ai-job-hunter
 npm install
 ```
 
 ### 2. Environment variables
 
-Copy `.env.example` to `.env.local` and fill in:
+Copy `.env.example` to `.env.local`:
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
-| `CLERK_SECRET_KEY` | Clerk secret key |
-| `CLERK_WEBHOOK_SECRET` | Clerk webhook signing secret |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `FIRECRAWL_API_KEY` | Firecrawl API key |
+```bash
+cp .env.example .env.local
+```
 
-### 3. Database setup
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk publishable key |
+| `CLERK_SECRET_KEY` | Yes | Clerk secret key |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key |
+| `FIRECRAWL_API_KEY` | Yes | Firecrawl API key |
+| `OPENAI_API_KEY` | For AI features | OpenAI API key |
+| `CLERK_WEBHOOK_SECRET` | Production | Clerk webhook signing secret |
 
-Run `database/schema.sql` in your Supabase SQL Editor. This creates all tables, pgvector extension, RLS policies, and the `match_embeddings` function.
+Clerk URL paths (add to `.env.local`):
 
-Create a Supabase Storage bucket named `resumes` (public or with appropriate policies).
+```
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+```
 
-### 4. Clerk setup
+### 3. Database
 
-1. Create a Clerk application at [clerk.com](https://clerk.com)
-2. Set sign-in/sign-up URLs to `/sign-in` and `/sign-up`
-3. Add webhook endpoint: `https://your-domain/api/webhooks/clerk` for `user.created`, `user.updated`, `user.deleted`
+Run `database/schema.sql` in the **Supabase SQL Editor** (creates tables, pgvector, storage bucket, RLS).
 
-### 5. Run development server
+### 4. Run locally
 
 ```bash
 npm run dev
@@ -62,50 +123,98 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Features
+---
 
-| Feature | Status |
-|---------|--------|
-| Landing page (hero, pricing, FAQ) | ✅ |
-| Clerk authentication | ✅ |
-| Dashboard with stats | ✅ |
-| Resume Optimizer (PDF/DOCX/TXT) | ✅ |
-| LinkedIn Profile Review | ✅ |
-| Portfolio Review (GitHub + Firecrawl) | ✅ |
-| Job Matching (Firecrawl scrape) | ✅ |
-| Cover Letter Generator | ✅ |
-| Interview Preparation | ✅ |
-| AI Career Chat (RAG) | ✅ |
-| Usage limits (Free/Pro tiers) | ✅ |
-| Dark/Light mode | ✅ |
+## Deploy to Vercel
+
+1. Import [MrAhmed31/ai-job-hunter](https://github.com/MrAhmed31/ai-job-hunter) on [vercel.com/new](https://vercel.com/new)
+2. Add all environment variables (see [docs/DEPLOY.md](docs/DEPLOY.md))
+3. Set `NEXT_PUBLIC_APP_URL` to your Vercel URL
+4. Add your domain in **Clerk → Configure → Domains**
+5. Add Clerk webhook: `https://your-app.vercel.app/api/webhooks/clerk`
+
+Full checklist: [docs/DEPLOY.md](docs/DEPLOY.md) · Env reference: [docs/VERCEL-ENV.md](docs/VERCEL-ENV.md)
+
+---
 
 ## Project Structure
 
 ```
-src/
-├── app/                    # Next.js App Router pages
-├── components/             # UI + feature components
-├── lib/
-│   ├── ai/                 # OpenAI client + prompts
-│   ├── rag/                # Chunking, embedding, retrieval
-│   ├── firecrawl/          # Web scraping
-│   ├── supabase/           # Database clients
-│   └── services/           # Business logic
-├── actions/                # Server Actions
-└── types/                  # TypeScript types
-database/
-└── schema.sql              # Full PostgreSQL schema
-docs/
-├── ARCHITECTURE.md
-└── ROADMAP.md
+ai-job-hunter/
+├── src/
+│   ├── app/                  # Pages (marketing, dashboard, auth, API)
+│   ├── components/           # UI + feature components
+│   ├── actions/              # Server Actions
+│   ├── lib/
+│   │   ├── ai/               # OpenAI client + prompt templates
+│   │   ├── rag/              # Chunking, embeddings, retrieval
+│   │   ├── firecrawl/        # Web scraping
+│   │   ├── supabase/         # Database clients
+│   │   └── services/         # Business logic
+│   ├── types/
+│   └── proxy.ts              # Auth proxy (Next.js 16)
+├── database/
+│   └── schema.sql            # Full PostgreSQL schema
+└── docs/
+    ├── ARCHITECTURE.md
+    ├── DEPLOY.md
+    ├── ROADMAP.md
+    └── PROJECT-REVIEW.md
 ```
+
+---
 
 ## Architecture
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design, RAG pipeline, and AI pipelines.
+```
+User → Clerk Auth → Next.js App Router
+                         ├── Server Actions → Supabase (PostgreSQL + pgvector)
+                         ├── OpenAI GPT-4o (analysis, generation)
+                         └── Firecrawl (scraping)
+```
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for implementation phases.
+Detailed design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## Pricing Tiers (In-App)
+
+| | Free | Pro ($19/mo) |
+|---|------|--------------|
+| Resume reviews | 3/mo | Unlimited |
+| Job matches | 5/mo | Unlimited |
+| Cover letters | 1/mo | Unlimited |
+| Interview sessions | 1/mo | Unlimited |
+
+> Stripe payments not yet integrated — Pro upgrade is UI-only.
+
+---
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+
+---
+
+## Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full plan.
+
+**Next priorities:** OpenAI integration on production, PDF/DOCX export, Stripe payments, mobile sidebar, streaming AI responses, admin panel.
+
+**Known gaps & review:** [docs/PROJECT-REVIEW.md](docs/PROJECT-REVIEW.md)
+
+---
 
 ## License
 
 Private — All rights reserved.
+
+---
+
+<p align="center">Built by <a href="https://github.com/MrAhmed31">MrAhmed31</a></p>
