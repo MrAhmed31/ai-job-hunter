@@ -2,7 +2,11 @@
 
 **Land Better Jobs Faster with AI.**
 
+[![GitHub](https://img.shields.io/badge/GitHub-MrAhmed31%2Fai--job--hunter-blue)](https://github.com/MrAhmed31/ai-job-hunter)
+
 A production-ready SaaS application for resume optimization, job matching, cover letter generation, interview preparation, and AI-powered career coaching.
+
+**Repository:** https://github.com/MrAhmed31/ai-job-hunter
 
 ## Tech Stack
 
