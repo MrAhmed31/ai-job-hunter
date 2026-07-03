@@ -319,3 +319,31 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE embeddings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- ─── STORAGE BUCKET ────────────────────────────────────────────────────────────
+-- Run after creating project. Or create via Dashboard: Storage → New bucket "resumes"
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'resumes',
+  'resumes',
+  true,
+  10485760,
+  ARRAY['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
+)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Authenticated users can upload resumes"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'resumes');
+
+CREATE POLICY "Public read access for resumes"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'resumes');
+
+CREATE POLICY "Users can delete own resume files"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'resumes');
