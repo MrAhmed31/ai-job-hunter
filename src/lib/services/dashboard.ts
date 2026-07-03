@@ -25,21 +25,21 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
       .eq("is_primary", true)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("linkedin_reviews")
       .select("overall_score")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("portfolio_reviews")
       .select("overall_score")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("saved_jobs")
       .select("*", { count: "exact", head: true })

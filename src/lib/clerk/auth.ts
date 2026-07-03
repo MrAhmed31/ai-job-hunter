@@ -13,27 +13,53 @@ export async function getOrCreateProfile(): Promise<Profile> {
   if (!clerkUser) throw new Error("Unauthorized");
 
   const supabase = createServerClient();
+  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+  const fullName = `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || null;
+  const avatarUrl = clerkUser.imageUrl ?? null;
 
-  const { data: existing } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from("profiles")
     .select("*")
     .eq("clerk_id", clerkUser.id)
-    .single();
+    .maybeSingle();
 
-  if (existing) return existing as Profile;
+  if (selectError) {
+    throw new Error(`Failed to load profile: ${selectError.message}`);
+  }
 
-  const { data: created, error } = await supabase
+  if (existing) {
+    return existing as Profile;
+  }
+
+  const { data: created, error: insertError } = await supabase
     .from("profiles")
-    .insert({
-      clerk_id: clerkUser.id,
-      email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
-      full_name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || null,
-      avatar_url: clerkUser.imageUrl ?? null,
-    })
-    .select()
-    .single();
+    .upsert(
+      {
+        clerk_id: clerkUser.id,
+        email,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      },
+      { onConflict: "clerk_id" }
+    )
+    .select("*")
+    .maybeSingle();
 
-  if (error) throw new Error(`Failed to create profile: ${error.message}`);
+  if (insertError) {
+    throw new Error(`Failed to create profile: ${insertError.message}`);
+  }
+
+  if (!created) {
+    const { data: retry } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("clerk_id", clerkUser.id)
+      .maybeSingle();
+
+    if (retry) return retry as Profile;
+    throw new Error("Failed to create profile: no row returned");
+  }
+
   return created as Profile;
 }
 
@@ -43,6 +69,6 @@ export async function getProfileByClerkId(clerkId: string): Promise<Profile | nu
     .from("profiles")
     .select("*")
     .eq("clerk_id", clerkId)
-    .single();
-  return data as Profile | null;
+    .maybeSingle();
+  return (data as Profile | null) ?? null;
 }
