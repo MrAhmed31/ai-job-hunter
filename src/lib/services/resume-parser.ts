@@ -1,18 +1,20 @@
-import { PDFParse } from "pdf-parse";
-import mammoth from "mammoth";
-
 export async function extractTextFromFile(
   buffer: Buffer,
   fileType: "pdf" | "docx" | "txt"
 ): Promise<string> {
   switch (fileType) {
     case "pdf": {
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
-      const result = await parser.getText();
-      await parser.destroy();
-      return result.text;
+      try {
+        const result = await parser.getText();
+        return result.text;
+      } finally {
+        await parser.destroy();
+      }
     }
     case "docx": {
+      const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
     }
@@ -30,6 +32,5 @@ export function detectFileType(filename: string): "pdf" | "docx" | "txt" | null 
 }
 
 export function validateResumeText(text: string): boolean {
-  const cleaned = text.trim();
-  return cleaned.length >= 100;
+  return text.trim().length >= 100;
 }

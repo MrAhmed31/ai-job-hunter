@@ -1,5 +1,5 @@
 import { getOrCreateProfile } from "@/lib/clerk/auth";
-import { getUserResumes } from "@/lib/services/resume";
+import { getUserResumes } from "@/lib/services/resume-queries";
 import { ResumeOptimizerPage } from "@/components/features/resume/resume-optimizer";
 import { DashboardError } from "@/components/layout/dashboard-error";
 import type { Resume } from "@/types/database";

@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { notFound } from "next/navigation";
 import { getOrCreateProfile } from "@/lib/clerk/auth";
-import { getResumeById } from "@/lib/services/resume";
+import { getResumeById } from "@/lib/services/resume-queries";
 import { ResumeDetailPage } from "@/components/features/resume/resume-detail";
 import { DashboardError } from "@/components/layout/dashboard-error";
 

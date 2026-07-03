@@ -122,23 +122,4 @@ export async function generateResumeVersion(
   return content;
 }
 
-export async function getUserResumes(profileId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("resumes")
-    .select("*")
-    .eq("user_id", profileId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
-}
-
-export async function getResumeById(profileId: string, resumeId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("resumes")
-    .select("*, resume_versions(*)")
-    .eq("id", resumeId)
-    .eq("user_id", profileId)
-    .single();
-  return data;
-}
+export { getUserResumes, getResumeById } from "@/lib/services/resume-queries";
