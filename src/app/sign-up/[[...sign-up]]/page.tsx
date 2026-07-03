@@ -1,9 +1,5 @@
-import { SignUp } from "@clerk/nextjs";
+import { ClerkAuthForm } from "@/components/auth/clerk-auth-form";
 
 export default function SignUpPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center gradient-bg p-4">
-      <SignUp />
-    </div>
-  );
+  return <ClerkAuthForm mode="sign-up" />;
 }
