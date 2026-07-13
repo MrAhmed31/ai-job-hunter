@@ -72,11 +72,15 @@ export async function reviewPortfolio(
 }
 
 export async function getPortfolioReviews(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("portfolio_reviews")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("portfolio_reviews")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }

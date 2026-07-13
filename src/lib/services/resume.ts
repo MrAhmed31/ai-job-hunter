@@ -1,6 +1,8 @@
 import { getOpenAI, ANALYSIS_MODEL } from "@/lib/ai/openai";
 import { RESUME_ANALYSIS_PROMPT, RESUME_IMPROVE_PROMPT } from "@/lib/ai/prompts";
 import { createServerClient } from "@/lib/supabase/server";
+import { isSupabaseUnreachable } from "@/lib/db/fallback-profile";
+import { createResumeRecord, getBlobResume, saveBlobResume } from "@/lib/db/resume-blob";
 import { storeEmbeddings } from "@/lib/rag/embeddings";
 import { checkUsageLimit, logUsage } from "@/lib/services/usage";
 import { extractTextFromFile, detectFileType, validateResumeText } from "@/lib/services/resume-parser";
@@ -23,47 +25,87 @@ export async function uploadAndAnalyzeResume(
     throw new Error("Resume text is too short. Please upload a complete resume.");
   }
 
-  const supabase = createServerClient();
-  const filePath = `${profile.id}/${Date.now()}-${file.name}`;
+  const analysis = await analyzeResumeText(rawText);
+  const title = file.name.replace(/\.[^.]+$/, "");
 
-  const { error: uploadError } = await supabase.storage
-    .from("resumes")
-    .upload(filePath, buffer, { contentType: file.type });
+  try {
+    const supabase = createServerClient();
+    const filePath = `${profile.id}/${Date.now()}-${file.name}`;
 
-  if (uploadError) {
-    console.warn("Storage upload failed, continuing without file URL:", uploadError.message);
+    const uploadResult = await Promise.race([
+      supabase.storage.from("resumes").upload(filePath, buffer, { contentType: file.type }),
+      new Promise<{ error: { message: string } }>((resolve) =>
+        setTimeout(() => resolve({ error: { message: "storage timed out" } }), 4000)
+      ),
+    ]);
+
+    const uploadError = uploadResult.error;
+    if (uploadError) {
+      console.warn("Storage upload failed, continuing without file URL:", uploadError.message);
+    }
+
+    const { data: publicUrl } = supabase.storage.from("resumes").getPublicUrl(filePath);
+
+    const insertResult = await Promise.race([
+      supabase
+        .from("resumes")
+        .insert({
+          user_id: profile.id,
+          title,
+          original_filename: file.name,
+          file_url: uploadError ? null : publicUrl.publicUrl,
+          file_type: fileType,
+          raw_text: rawText,
+          ats_score: analysis.atsScore,
+          analysis,
+          is_primary: true,
+        })
+        .select()
+        .single(),
+      new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: { message: "insert timed out" } }), 4000)
+      ),
+    ]);
+
+    if (!insertResult.error && insertResult.data) {
+      try {
+        await storeEmbeddings(profile.id, "resume", insertResult.data.id, rawText, {
+          filename: file.name,
+          atsScore: analysis.atsScore,
+        });
+      } catch {
+        // optional
+      }
+      await logUsage(profile.id, "resume_review", 0, { resumeId: insertResult.data.id });
+      return { resumeId: insertResult.data.id, analysis };
+    }
+
+    if (insertResult.error && !isSupabaseUnreachable(insertResult.error) && !/timed out/i.test(insertResult.error.message)) {
+      throw new Error(`Failed to save resume: ${insertResult.error.message}`);
+    }
+  } catch (error) {
+    if (!isSupabaseUnreachable(error) && !(error instanceof Error && /timed out/i.test(error.message))) {
+      // Fall through to blob for unreachable cases only when no explicit throw above.
+      if (error instanceof Error && error.message.startsWith("Failed to save resume:")) throw error;
+    }
   }
 
-  const { data: publicUrl } = supabase.storage.from("resumes").getPublicUrl(filePath);
-
-  const analysis = await analyzeResumeText(rawText);
-
-  const { data: resume, error } = await supabase
-    .from("resumes")
-    .insert({
-      user_id: profile.id,
-      title: file.name.replace(/\.[^.]+$/, ""),
-      original_filename: file.name,
-      file_url: uploadError ? null : publicUrl.publicUrl,
-      file_type: fileType,
-      raw_text: rawText,
-      ats_score: analysis.atsScore,
+  const fallback = await saveBlobResume(
+    profile.id,
+    createResumeRecord({
+      profileId: profile.id,
+      title,
+      originalFilename: file.name,
+      fileType,
+      rawText,
+      atsScore: analysis.atsScore,
       analysis,
-      is_primary: true,
+      fileUrl: null,
     })
-    .select()
-    .single();
+  );
 
-  if (error) throw new Error(`Failed to save resume: ${error.message}`);
-
-  await storeEmbeddings(profile.id, "resume", resume.id, rawText, {
-    filename: file.name,
-    atsScore: analysis.atsScore,
-  });
-
-  await logUsage(profile.id, "resume_review", 0, { resumeId: resume.id });
-
-  return { resumeId: resume.id, analysis };
+  await logUsage(profile.id, "resume_review", 0, { resumeId: fallback.id, storage: "blob" });
+  return { resumeId: fallback.id, analysis };
 }
 
 export async function analyzeResumeText(text: string): Promise<ResumeAnalysis> {
@@ -89,22 +131,34 @@ export async function generateResumeVersion(
   resumeId: string,
   versionType: ResumeVersionType
 ): Promise<string> {
-  const supabase = createServerClient();
-  const { data: resume } = await supabase
-    .from("resumes")
-    .select("raw_text")
-    .eq("id", resumeId)
-    .eq("user_id", profile.id)
-    .single();
+  let rawText: string | null | undefined;
 
-  if (!resume?.raw_text) throw new Error("Resume not found");
+  try {
+    const supabase = createServerClient();
+    const { data: resume } = await supabase
+      .from("resumes")
+      .select("raw_text")
+      .eq("id", resumeId)
+      .eq("user_id", profile.id)
+      .single();
+    rawText = resume?.raw_text;
+  } catch {
+    rawText = null;
+  }
+
+  if (!rawText) {
+    const blobResume = await getBlobResume(profile.id, resumeId);
+    rawText = blobResume?.raw_text;
+  }
+
+  if (!rawText) throw new Error("Resume not found");
 
   const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: ANALYSIS_MODEL,
     messages: [
       { role: "system", content: RESUME_IMPROVE_PROMPT(versionType) },
-      { role: "user", content: resume.raw_text.slice(0, 12000) },
+      { role: "user", content: rawText.slice(0, 12000) },
     ],
     temperature: 0.5,
   });
@@ -112,12 +166,17 @@ export async function generateResumeVersion(
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("Failed to generate resume version");
 
-  await supabase.from("resume_versions").insert({
-    resume_id: resumeId,
-    user_id: profile.id,
-    version_type: versionType,
-    content,
-  });
+  try {
+    const supabase = createServerClient();
+    await supabase.from("resume_versions").insert({
+      resume_id: resumeId,
+      user_id: profile.id,
+      version_type: versionType,
+      content,
+    });
+  } catch {
+    // Version persistence is best-effort when DB is down.
+  }
 
   return content;
 }

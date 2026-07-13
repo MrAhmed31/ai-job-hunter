@@ -51,11 +51,15 @@ export async function reviewLinkedInProfile(profile: Profile, linkedinUrl: strin
 }
 
 export async function getLinkedInReviews(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("linkedin_reviews")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("linkedin_reviews")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }

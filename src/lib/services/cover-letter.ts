@@ -74,11 +74,15 @@ export async function generateCoverLetter(
 }
 
 export async function getCoverLetters(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("cover_letters")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("cover_letters")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }

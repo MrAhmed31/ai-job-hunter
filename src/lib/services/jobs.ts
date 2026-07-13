@@ -88,23 +88,31 @@ export async function saveJob(profileId: string, jobId: string, isFavorite = fal
 }
 
 export async function getJobMatches(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("job_matches")
-    .select("*, jobs(*)")
-    .eq("user_id", userId)
-    .order("match_score", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("job_matches")
+      .select("*, jobs(*)")
+      .eq("user_id", userId)
+      .order("match_score", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getSavedJobs(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("saved_jobs")
-    .select("*, jobs(*)")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("saved_jobs")
+      .select("*, jobs(*)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 function extractTitle(markdown: string): string {

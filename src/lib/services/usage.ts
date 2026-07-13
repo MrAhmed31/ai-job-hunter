@@ -11,22 +11,28 @@ export async function checkUsageLimit(
   }
 
   const limit = FREE_TIER_LIMITS[feature] ?? 0;
-  const supabase = createServerClient();
 
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  try {
+    const supabase = createServerClient();
 
-  const { count } = await supabase
-    .from("usage_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", profile.id)
-    .eq("feature", feature)
-    .gte("created_at", startOfMonth.toISOString());
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-  const used = count ?? 0;
-  const remaining = Math.max(0, limit - used);
-  return { allowed: remaining > 0, remaining };
+    const { count } = await supabase
+      .from("usage_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .eq("feature", feature)
+      .gte("created_at", startOfMonth.toISOString());
+
+    const used = count ?? 0;
+    const remaining = Math.max(0, limit - used);
+    return { allowed: remaining > 0, remaining };
+  } catch {
+    // If DB is down, allow free-tier usage so core flows still work.
+    return { allowed: limit > 0, remaining: limit };
+  }
 }
 
 export async function logUsage(
@@ -35,13 +41,17 @@ export async function logUsage(
   tokensUsed = 0,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  const supabase = createServerClient();
-  await supabase.from("usage_logs").insert({
-    user_id: userId,
-    feature,
-    tokens_used: tokensUsed,
-    metadata,
-  });
+  try {
+    const supabase = createServerClient();
+    await supabase.from("usage_logs").insert({
+      user_id: userId,
+      feature,
+      tokens_used: tokensUsed,
+      metadata,
+    });
+  } catch {
+    // Ignore logging failures when DB is unreachable.
+  }
 }
 
 export function getTierLimits(tier: SubscriptionTier) {

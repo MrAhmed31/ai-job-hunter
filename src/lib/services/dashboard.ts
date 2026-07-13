@@ -1,96 +1,128 @@
 import { createServerClient } from "@/lib/supabase/server";
 import type { DashboardStats } from "@/types/index";
+import { isSupabaseUnreachable } from "@/lib/db/fallback-profile";
+
+const EMPTY_STATS: DashboardStats = {
+  applicationsSent: 0,
+  resumeScore: null,
+  interviewReadiness: null,
+  linkedinScore: null,
+  portfolioScore: null,
+  savedJobs: 0,
+  recentApplications: [],
+  recentMatches: [],
+  aiSuggestions: [
+    "Upload your resume to get an ATS score and personalized improvements.",
+    "Add your LinkedIn profile for a free optimization review.",
+    "Connect your GitHub or portfolio for a professional review.",
+    "Start matching jobs to find roles that fit your experience.",
+  ],
+};
 
 export async function getDashboardStats(userId: string): Promise<DashboardStats> {
-  const supabase = createServerClient();
+  try {
+    const supabase = createServerClient();
 
-  const [
-    applicationsResult,
-    primaryResume,
-    linkedinReview,
-    portfolioReview,
-    savedJobsCount,
-    recentApplications,
-    recentMatches,
-  ] = await Promise.all([
-    supabase
-      .from("applications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "applied"),
-    supabase
-      .from("resumes")
-      .select("ats_score")
-      .eq("user_id", userId)
-      .eq("is_primary", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("linkedin_reviews")
-      .select("overall_score")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("portfolio_reviews")
-      .select("overall_score")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("saved_jobs")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId),
-    supabase
-      .from("applications")
-      .select("*, jobs(*)")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("job_matches")
-      .select("*, jobs(*)")
-      .eq("user_id", userId)
-      .order("match_score", { ascending: false })
-      .limit(5),
-  ]);
+    const [
+      applicationsResult,
+      primaryResume,
+      linkedinReview,
+      portfolioReview,
+      savedJobsCount,
+      recentApplications,
+      recentMatches,
+      interviewSessions,
+    ] = await Promise.all([
+      supabase
+        .from("applications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "applied"),
+      supabase
+        .from("resumes")
+        .select("ats_score")
+        .eq("user_id", userId)
+        .eq("is_primary", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("linkedin_reviews")
+        .select("overall_score")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("portfolio_reviews")
+        .select("overall_score")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("saved_jobs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId),
+      supabase
+        .from("applications")
+        .select("*, jobs(*)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("job_matches")
+        .select("*, jobs(*)")
+        .eq("user_id", userId)
+        .order("match_score", { ascending: false })
+        .limit(5),
+      supabase
+        .from("interview_sessions")
+        .select("confidence_score")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(3),
+    ]);
 
-  const interviewSessions = await supabase
-    .from("interview_sessions")
-    .select("confidence_score")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(3);
+    // Any hard network failure surfaces as thrown errors; soft PostgREST errors just leave empty data.
+    if (
+      [applicationsResult, primaryResume, linkedinReview, portfolioReview, savedJobsCount].some(
+        (r) => r.error && isSupabaseUnreachable(r.error)
+      )
+    ) {
+      return EMPTY_STATS;
+    }
 
-  const avgConfidence =
-    interviewSessions.data && interviewSessions.data.length > 0
-      ? Math.round(
-          interviewSessions.data.reduce((sum, s) => sum + (s.confidence_score ?? 0), 0) /
-            interviewSessions.data.length
-        )
-      : null;
+    const avgConfidence =
+      interviewSessions.data && interviewSessions.data.length > 0
+        ? Math.round(
+            interviewSessions.data.reduce((sum, s) => sum + (s.confidence_score ?? 0), 0) /
+              interviewSessions.data.length
+          )
+        : null;
 
-  const aiSuggestions = generateSuggestions({
-    resumeScore: primaryResume.data?.ats_score ?? null,
-    linkedinScore: linkedinReview.data?.overall_score ?? null,
-    portfolioScore: portfolioReview.data?.overall_score ?? null,
-    applicationsSent: applicationsResult.count ?? 0,
-  });
+    const aiSuggestions = generateSuggestions({
+      resumeScore: primaryResume.data?.ats_score ?? null,
+      linkedinScore: linkedinReview.data?.overall_score ?? null,
+      portfolioScore: portfolioReview.data?.overall_score ?? null,
+      applicationsSent: applicationsResult.count ?? 0,
+    });
 
-  return {
-    applicationsSent: applicationsResult.count ?? 0,
-    resumeScore: primaryResume.data?.ats_score ?? null,
-    interviewReadiness: avgConfidence,
-    linkedinScore: linkedinReview.data?.overall_score ?? null,
-    portfolioScore: portfolioReview.data?.overall_score ?? null,
-    savedJobs: savedJobsCount.count ?? 0,
-    recentApplications: recentApplications.data ?? [],
-    recentMatches: recentMatches.data ?? [],
-    aiSuggestions,
-  };
+    return {
+      applicationsSent: applicationsResult.count ?? 0,
+      resumeScore: primaryResume.data?.ats_score ?? null,
+      interviewReadiness: avgConfidence,
+      linkedinScore: linkedinReview.data?.overall_score ?? null,
+      portfolioScore: portfolioReview.data?.overall_score ?? null,
+      savedJobs: savedJobsCount.count ?? 0,
+      recentApplications: recentApplications.data ?? [],
+      recentMatches: recentMatches.data ?? [],
+      aiSuggestions,
+    };
+  } catch (error) {
+    if (isSupabaseUnreachable(error)) return EMPTY_STATS;
+    throw error;
+  }
 }
 
 function generateSuggestions(ctx: {

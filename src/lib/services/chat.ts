@@ -81,30 +81,38 @@ export async function sendChatMessage(
 }
 
 export async function getConversations(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("chat_conversations")
-    .select("*")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("chat_conversations")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getConversationMessages(conversationId: string, userId: string) {
-  const supabase = createServerClient();
-  const { data: conv } = await supabase
-    .from("chat_conversations")
-    .select("id")
-    .eq("id", conversationId)
-    .eq("user_id", userId)
-    .single();
+  try {
+    const supabase = createServerClient();
+    const { data: conv } = await supabase
+      .from("chat_conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("user_id", userId)
+      .single();
 
-  if (!conv) return [];
+    if (!conv) return [];
 
-  const { data } = await supabase
-    .from("chat_messages")
-    .select("*")
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
-  return data ?? [];
+    const { data } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }

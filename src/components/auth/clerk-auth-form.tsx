@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SignIn, SignUp } from "@clerk/nextjs";
+import { SignIn, SignUp, useAuth } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
 
 type Mode = "sign-in" | "sign-up";
 
 export function ClerkAuthForm({ mode }: { mode: Mode }) {
+  const { isLoaded } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
+    if (isLoaded) {
+      setTimedOut(false);
+      return;
+    }
     const timer = setTimeout(() => setTimedOut(true), 8000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isLoaded]);
 
   return (
     <div className="flex min-h-screen items-center justify-center gradient-bg p-4">
@@ -35,7 +40,14 @@ export function ClerkAuthForm({ mode }: { mode: Mode }) {
           />
         )}
 
-        {timedOut && (
+        {!isLoaded && !timedOut && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading sign-in form...
+          </div>
+        )}
+
+        {!isLoaded && timedOut && (
           <div className="mt-4 rounded-2xl border border-amber-500/30 bg-card p-6 text-center text-sm shadow-sm">
             <p className="font-medium">Still loading Clerk?</p>
             <p className="mt-2 text-muted-foreground">
@@ -49,13 +61,6 @@ export function ClerkAuthForm({ mode }: { mode: Mode }) {
             <a href="/" className="mt-4 inline-block text-violet-600 hover:underline dark:text-violet-400">
               ← Back to home
             </a>
-          </div>
-        )}
-
-        {!timedOut && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading sign-in form...
           </div>
         )}
       </div>

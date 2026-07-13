@@ -96,11 +96,15 @@ export async function evaluateInterviewResponse(
 }
 
 export async function getInterviewSessions(userId: string) {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("interview_sessions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("interview_sessions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }

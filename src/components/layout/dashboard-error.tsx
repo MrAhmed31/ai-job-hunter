@@ -20,6 +20,14 @@ export function DashboardError({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{message}</p>
+            {(message.includes("Supabase") || message.includes("profile")) && (
+              <ol className="list-decimal space-y-1 pl-4 text-left text-sm text-muted-foreground">
+                <li>Open supabase.com → confirm your project is Active (not paused/deleted).</li>
+                <li>Copy Project URL + anon key + service_role key into Vercel env vars.</li>
+                <li>Run database/schema.sql in the Supabase SQL Editor.</li>
+                <li>Redeploy on Vercel, then hard-refresh this page.</li>
+              </ol>
+            )}
             <div className="flex gap-2">
               <Button asChild>
                 <Link href="/dashboard">Back to Dashboard</Link>

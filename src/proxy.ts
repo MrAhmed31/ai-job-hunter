@@ -13,10 +13,21 @@ const isPublicRoute = createRouteMatcher([
   "/sitemap.xml",
 ]);
 
+/**
+ * Do NOT use auth.protect() here.
+ * With Clerk development keys (pk_test_), protect() rewrites unauthenticated
+ * requests to /404 (X-Clerk-Auth-Reason: protect-rewrite, dev-browser-missing).
+ * Manual redirect to /sign-in is the reliable fix.
+ */
 const clerkHandler = clerkMiddleware(
   async (auth, request) => {
-    if (!isPublicRoute(request)) {
-      await auth.protect();
+    if (isPublicRoute(request)) return;
+
+    const { userId } = await auth();
+    if (!userId) {
+      const signInUrl = new URL("/sign-in", request.url);
+      signInUrl.searchParams.set("redirect_url", request.url);
+      return NextResponse.redirect(signInUrl);
     }
   },
   {
@@ -41,7 +52,7 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
 
 export const config = {
   matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
 };
